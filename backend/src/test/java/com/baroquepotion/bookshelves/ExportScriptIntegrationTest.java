@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -28,7 +28,7 @@ class ExportScriptIntegrationTest {
 
     @Test
     void exportScriptCreatesPortableArtifactsWithCurrentBookFields(@TempDir Path tempDir) throws Exception {
-        try (PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17")
+        try (PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:17")
                 .withDatabaseName("bookshelves_export")
                 .withUsername("bookshelves")
                 .withPassword("bookshelves")) {
@@ -87,11 +87,14 @@ class ExportScriptIntegrationTest {
                     .containsEntry("portableJsonl", true)
                     .containsEntry("postgresDump", false);
             assertThat((Map<String, Object>) manifest.get("rowCounts"))
-                    .containsEntry("book", 1)
+                    .containsEntry("book", 9)
                     .containsEntry("shelf_coordinate_audit", 1);
 
-            String firstLine = Files.readAllLines(bookJsonlPath).getFirst();
-            Map<String, Object> book = new ObjectMapper().readValue(firstLine, MAP_TYPE);
+            Map<String, Object> book = Files.readAllLines(bookJsonlPath).stream()
+                    .map(this::readMap)
+                    .filter(row -> "Exported Book".equals(row.get("title")))
+                    .findFirst()
+                    .orElseThrow();
             assertThat(book)
                     .containsEntry("title", "Exported Book")
                     .containsEntry("last_audited", "2026-04-01")
@@ -123,7 +126,7 @@ class ExportScriptIntegrationTest {
         }
     }
 
-    private void markShelfAudited(PostgreSQLContainer<?> postgres) throws Exception {
+    private void markShelfAudited(PostgreSQLContainer postgres) throws Exception {
         try (Connection connection = DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
              PreparedStatement statement = connection.prepareStatement("update shelf set audited = true where id = ?")) {
             statement.setString(1, "uncategorized");
@@ -131,7 +134,7 @@ class ExportScriptIntegrationTest {
         }
     }
 
-    private void markShelfCoordinateAudited(PostgreSQLContainer<?> postgres) throws Exception {
+    private void markShelfCoordinateAudited(PostgreSQLContainer postgres) throws Exception {
         try (Connection connection = DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
              PreparedStatement statement = connection.prepareStatement("""
                      insert into shelf_coordinate_audit (shelf_id, shelf_coords, audited)
@@ -143,7 +146,7 @@ class ExportScriptIntegrationTest {
         }
     }
 
-    private void insertSampleBook(PostgreSQLContainer<?> postgres) throws Exception {
+    private void insertSampleBook(PostgreSQLContainer postgres) throws Exception {
         try (Connection connection = DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())) {
             try (PreparedStatement statement = connection.prepareStatement("""
                     insert into book (

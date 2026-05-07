@@ -7,14 +7,14 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.util.Map;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 abstract class AbstractIntegrationTest {
 
-    private static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17")
+    private static final PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:17")
             .withDatabaseName("bookshelves")
             .withUsername("bookshelves")
             .withPassword("bookshelves");

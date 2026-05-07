@@ -32,7 +32,10 @@ public class ExportController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ExportResponse create(@RequestBody(required = false) ExportRequest request) {
-        ExportRequest value = request == null ? new ExportRequest(null, true, true, false) : request;
-        return exportService.createExport(value);
+        return exportService.createExport(defaultRequestWhenMissing(request));
+    }
+
+    private ExportRequest defaultRequestWhenMissing(ExportRequest request) {
+        return request == null ? new ExportRequest(null, true, true, false) : request;
     }
 }

@@ -18,6 +18,8 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -53,25 +55,23 @@ public class ScriptExportExecutor implements ExportExecutor {
 
     @Override
     public ExportResponse createExport(ExportRequest request) {
-        boolean portableJsonl = request.portableJsonl() == null || request.portableJsonl();
-        boolean postgresDump = request.postgresDump() == null || request.postgresDump();
-        boolean compress = request.compress() != null && request.compress();
+        ExportOptions options = normalizeOptions(request);
 
-        if (!portableJsonl && !postgresDump) {
+        if (!options.portableJsonl() && !options.postgresDump()) {
             throw new IllegalArgumentException("Choose at least one export type.");
         }
 
         Path scriptPath = resolveScriptPath();
         Path workingDirectory = resolveWorkingDirectory(scriptPath);
-        List<String> command = buildCommand(scriptPath, request, portableJsonl, postgresDump, compress);
+        List<String> command = buildCommand(scriptPath, options);
 
         ProcessBuilder processBuilder = new ProcessBuilder(command);
         processBuilder.directory(workingDirectory.toFile());
         processBuilder.redirectErrorStream(true);
         configureEnvironment(processBuilder.environment());
         log.info("Starting export with portableJsonl={}, postgresDump={}, compress={}, outputDirectory={}",
-                portableJsonl, postgresDump, compress,
-                request.outputDirectory() == null || request.outputDirectory().isBlank() ? "default" : request.outputDirectory().trim());
+                options.portableJsonl(), options.postgresDump(), options.compress(),
+                options.outputDirectory().orElse("default"));
 
         try {
             Process process = processBuilder.start();
@@ -111,31 +111,37 @@ public class ScriptExportExecutor implements ExportExecutor {
         }
     }
 
-    private List<String> buildCommand(Path scriptPath,
-                                      ExportRequest request,
-                                      boolean portableJsonl,
-                                      boolean postgresDump,
-                                      boolean compress) {
+    private ExportOptions normalizeOptions(ExportRequest request) {
+        Objects.requireNonNull(request, "Export request is required");
+        return new ExportOptions(
+                normalizeOptionalText(request.outputDirectory()),
+                request.portableJsonl() == null || request.portableJsonl(),
+                request.postgresDump() == null || request.postgresDump(),
+                request.compress() != null && request.compress());
+    }
+
+    private List<String> buildCommand(Path scriptPath, ExportOptions options) {
         List<String> command = new ArrayList<>();
         command.add(scriptPath.toString());
-        if (request.outputDirectory() != null && !request.outputDirectory().isBlank()) {
+        options.outputDirectory().ifPresent(outputDirectory -> {
             command.add("--out");
-            command.add(request.outputDirectory().trim());
-        }
-        if (portableJsonl && !postgresDump) {
+            command.add(outputDirectory);
+        });
+        if (options.portableJsonl() && !options.postgresDump()) {
             command.add("--portable-only");
-        } else if (!portableJsonl) {
+        } else if (!options.portableJsonl()) {
             command.add("--dump-only");
         }
-        if (compress) {
+        if (options.compress()) {
             command.add("--compress");
         }
         return command;
     }
 
     private Path resolveScriptPath() {
-        if (properties.getPath() != null && !properties.getPath().isBlank()) {
-            Path configured = Paths.get(properties.getPath()).toAbsolutePath().normalize();
+        Optional<String> configuredPath = normalizeOptionalText(properties.getPath());
+        if (configuredPath.isPresent()) {
+            Path configured = Paths.get(configuredPath.get()).toAbsolutePath().normalize();
             if (Files.exists(configured)) {
                 return configured;
             }
@@ -143,21 +149,25 @@ public class ScriptExportExecutor implements ExportExecutor {
         }
 
         Path cwd = Paths.get("").toAbsolutePath();
-        List<Path> candidates = List.of(
-                cwd.resolve("scripts").resolve("export_bookshelves.sh"),
-                cwd.getParent() == null ? null : cwd.getParent().resolve("scripts").resolve("export_bookshelves.sh"),
-                cwd.getParent() == null || cwd.getParent().getParent() == null ? null :
-                        cwd.getParent().getParent().resolve("scripts").resolve("export_bookshelves.sh")
-        );
+        List<Path> candidates = new ArrayList<>();
+        candidates.add(cwd.resolve("scripts").resolve("export_bookshelves.sh"));
+        Optional.ofNullable(cwd.getParent())
+                .map(parent -> parent.resolve("scripts").resolve("export_bookshelves.sh"))
+                .ifPresent(candidates::add);
+        Optional.ofNullable(cwd.getParent())
+                .map(Path::getParent)
+                .map(grandparent -> grandparent.resolve("scripts").resolve("export_bookshelves.sh"))
+                .ifPresent(candidates::add);
         return candidates.stream()
-                .filter(path -> path != null && Files.exists(path))
+                .filter(Files::exists)
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("Could not locate scripts/export_bookshelves.sh"));
     }
 
     private Path resolveWorkingDirectory(Path scriptPath) {
-        if (properties.getWorkingDirectory() != null && !properties.getWorkingDirectory().isBlank()) {
-            Path configured = Paths.get(properties.getWorkingDirectory()).toAbsolutePath().normalize();
+        Optional<String> configuredWorkingDirectory = normalizeOptionalText(properties.getWorkingDirectory());
+        if (configuredWorkingDirectory.isPresent()) {
+            Path configured = Paths.get(configuredWorkingDirectory.get()).toAbsolutePath().normalize();
             if (Files.exists(configured)) {
                 return configured;
             }
@@ -176,7 +186,7 @@ public class ScriptExportExecutor implements ExportExecutor {
     }
 
     private JdbcConnectionInfo parseDatasourceUrl(String jdbcUrl) {
-        Matcher matcher = POSTGRES_JDBC_URL.matcher(jdbcUrl == null ? "" : jdbcUrl);
+        Matcher matcher = POSTGRES_JDBC_URL.matcher(normalizeOptionalText(jdbcUrl).orElse(""));
         if (!matcher.matches()) {
             throw new IllegalStateException("Unsupported PostgreSQL JDBC URL for export: " + jdbcUrl);
         }
@@ -186,6 +196,13 @@ public class ScriptExportExecutor implements ExportExecutor {
                 port == null || port.isBlank() ? "5432" : port,
                 matcher.group("database")
         );
+    }
+
+    private Optional<String> normalizeOptionalText(String value) {
+        if (value == null || value.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.of(value.trim());
     }
 
     private String parseExportDirectory(String output) {
@@ -207,5 +224,11 @@ public class ScriptExportExecutor implements ExportExecutor {
     }
 
     private record JdbcConnectionInfo(String host, String port, String database) {
+    }
+
+    private record ExportOptions(Optional<String> outputDirectory,
+                                 boolean portableJsonl,
+                                 boolean postgresDump,
+                                 boolean compress) {
     }
 }

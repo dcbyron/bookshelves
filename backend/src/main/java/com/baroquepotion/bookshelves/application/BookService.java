@@ -13,7 +13,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -130,7 +133,7 @@ public class BookService {
             log.warn("Rejected book write due to unknown shelf id '{}'", request.shelfId());
             throw new InvalidReferenceException("Unknown shelf id: " + request.shelfId());
         }
-        var collectionIds = request.collectionIds() == null ? List.<String>of() : request.collectionIds();
+        var collectionIds = Objects.requireNonNullElse(request.collectionIds(), List.<String>of());
         var missingCollectionIds = collectionIds.stream()
                 .filter(id -> !collectionRepository.existsById(id))
                 .distinct()
@@ -142,13 +145,14 @@ public class BookService {
     }
 
     private BookSearchCriteria normalizeCriteria(BookSearchCriteria criteria) {
+        Objects.requireNonNull(criteria, "Search criteria are required");
         return new BookSearchCriteria(
-                trimToNull(criteria.query()),
+                optionalText(criteria.query()),
                 normalizeCollectionIds(criteria.collectionIds()),
-                trimToNull(criteria.collectionMode()),
+                optionalText(criteria.collectionMode()),
                 criteria.noCollectionOnly(),
                 criteria.noBestEstimateOnly(),
-                trimToNull(criteria.shelfId()),
+                optionalText(criteria.shelfId()),
                 criteria.year(),
                 criteria.hasShelf(),
                 criteria.specialOnly(),
@@ -157,35 +161,36 @@ public class BookService {
                 criteria.dustjacketOnly(),
                 criteria.slipcaseOnly(),
                 criteria.videoOnly(),
-                trimToNull(criteria.dateAddedMode()),
+                optionalText(criteria.dateAddedMode()),
                 criteria.dateAddedOn(),
                 criteria.dateAddedYear(),
-                trimToNull(criteria.lastAuditedMode()),
+                optionalText(criteria.lastAuditedMode()),
                 criteria.lastAuditedOn(),
-                trimToNull(criteria.sortBy()),
-                trimToNull(criteria.sortDirection()),
+                optionalText(criteria.sortBy()),
+                optionalText(criteria.sortDirection()),
                 criteria.page(),
                 criteria.size()
         );
     }
 
     private BookRequest normalizeRequest(BookRequest request) {
+        Objects.requireNonNull(request, "Book request is required");
         return new BookRequest(
-                trim(request.title()),
-                trimToNull(request.author()),
-                trimToNull(request.publicationCity()),
-                trimToNull(request.publisher()),
-                trimToNull(request.imprint()),
+                requiredText(request.title(), "Title"),
+                optionalText(request.author()),
+                optionalText(request.publicationCity()),
+                optionalText(request.publisher()),
+                optionalText(request.imprint()),
                 request.year(),
                 request.firstPublished(),
-                trimToNull(request.edition()),
+                optionalText(request.edition()),
                 request.pages(),
-                trimToNull(request.frontpages()),
+                optionalText(request.frontpages()),
                 request.dateAdded(),
                 request.lastAudited(),
-                trimToNull(request.shelfId()),
-                trimToNull(request.authorSecondary()),
-                trimToNull(request.isbn()),
+                optionalText(request.shelfId()),
+                optionalText(request.authorSecondary()),
+                optionalText(request.isbn()),
                 request.special(),
                 request.digital(),
                 request.hardback(),
@@ -193,9 +198,9 @@ public class BookService {
                 request.slipcase(),
                 request.video(),
                 request.vols(),
-                trimToNull(request.series()),
-                trimToNull(request.shelfCoords()),
-                trimToNull(request.note()),
+                optionalText(request.series()),
+                optionalText(request.shelfCoords()),
+                optionalText(request.note()),
                 request.pricePaid(),
                 request.priceOnItem(),
                 request.priceToReplace(),
@@ -209,21 +214,28 @@ public class BookService {
             return List.of();
         }
         return collectionIds.stream()
-                .filter(id -> id != null && !id.isBlank())
-                .flatMap(id -> java.util.Arrays.stream(id.split(",")))
-                .map(this::trimToNull)
-                .filter(id -> id != null && !id.isBlank())
+                .filter(Objects::nonNull)
+                .flatMap(id -> Arrays.stream(id.split(",")))
+                .map(this::normalizedText)
+                .flatMap(Optional::stream)
                 .distinct()
                 .toList();
     }
 
-    private String trim(String value) {
-        return value == null ? null : value.trim();
+    private String requiredText(String value, String label) {
+        return normalizedText(value)
+                .orElseThrow(() -> new IllegalArgumentException(label + " must not be blank"));
     }
 
-    private String trimToNull(String value) {
-        var trimmed = trim(value);
-        return trimmed == null || trimmed.isBlank() ? null : trimmed;
+    private String optionalText(String value) {
+        return normalizedText(value).orElse(null);
+    }
+
+    private Optional<String> normalizedText(String value) {
+        if (value == null || value.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.of(value.trim());
     }
 
     private Book toDomain(UUID id, BookRequest request) {
@@ -260,7 +272,7 @@ public class BookService {
                 request.priceToReplaceChecked(),
                 null,
                 null,
-                request.collectionIds() == null ? List.of() : request.collectionIds()
+                request.collectionIds()
         );
     }
 }

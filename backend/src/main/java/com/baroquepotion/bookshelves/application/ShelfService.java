@@ -129,14 +129,20 @@ public class ShelfService {
     }
 
     private ShelfRequest normalizeRequest(ShelfRequest request) {
-        return new ShelfRequest(request.id().trim(), request.name().trim(), Boolean.TRUE.equals(request.audited()));
+        return new ShelfRequest(
+                normalizeRequired(request.id(), "Shelf id"),
+                normalizeRequired(request.name(), "Shelf name"),
+                Boolean.TRUE.equals(request.audited()));
     }
 
     private String normalizeShelfCoords(String shelfCoords) {
-        var normalized = shelfCoords == null ? "" : shelfCoords.trim();
-        if (normalized.isEmpty()) {
-            throw new IllegalArgumentException("Shelf coordinates are required.");
+        return normalizeRequired(shelfCoords, "Shelf coordinates");
+    }
+
+    private String normalizeRequired(String value, String label) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(label + " must not be blank");
         }
-        return normalized;
+        return value.trim();
     }
 }

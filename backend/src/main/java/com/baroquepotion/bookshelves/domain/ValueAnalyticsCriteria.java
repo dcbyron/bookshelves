@@ -1,6 +1,7 @@
 package com.baroquepotion.bookshelves.domain;
 
 import java.time.LocalDate;
+import java.util.Optional;
 
 /**
  * Shared filter and basis values for library value analytics queries.
@@ -26,7 +27,7 @@ public record ValueAnalyticsCriteria(
      * {@code bestEstimate}
      */
     public String normalizedBasis() {
-        return switch (basis == null ? "" : basis) {
+        return switch (valueOrEmpty(basis)) {
             case "printed" -> "printed";
             case "replacement" -> "replacement";
             case "bestEstimate" -> "bestEstimate";
@@ -41,11 +42,19 @@ public record ValueAnalyticsCriteria(
      * @return {@code before}, {@code after}, {@code year}, or {@code any}
      */
     public String normalizedDateAddedMode() {
-        return switch (dateAddedMode == null ? "" : dateAddedMode.toLowerCase()) {
+        return switch (lowercaseValueOrEmpty(dateAddedMode)) {
             case "before" -> "before";
             case "after" -> "after";
             case "year" -> "year";
             default -> "any";
         };
+    }
+
+    private static String lowercaseValueOrEmpty(String value) {
+        return valueOrEmpty(value).toLowerCase();
+    }
+
+    private static String valueOrEmpty(String value) {
+        return Optional.ofNullable(value).orElse("");
     }
 }

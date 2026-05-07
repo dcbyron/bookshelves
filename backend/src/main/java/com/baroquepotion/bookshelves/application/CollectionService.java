@@ -89,6 +89,15 @@ public class CollectionService {
     }
 
     private CollectionRequest normalizeRequest(CollectionRequest request) {
-        return new CollectionRequest(request.id().trim(), request.name().trim());
+        return new CollectionRequest(
+                normalizeRequired(request.id(), "Collection id"),
+                normalizeRequired(request.name(), "Collection name"));
+    }
+
+    private String normalizeRequired(String value, String label) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(label + " must not be blank");
+        }
+        return value.trim();
     }
 }

@@ -39,22 +39,18 @@ public class PublisherService {
      */
     @Transactional
     public PublisherRenameResult rename(PublisherRenameRequest request) {
-        String sourcePublisher = trimToNull(request.sourcePublisher());
-        String targetPublisher = trimToNull(request.targetPublisher());
-        if (sourcePublisher == null || targetPublisher == null) {
-            throw new IllegalArgumentException("Publisher values must not be blank");
-        }
+        String sourcePublisher = normalizeRequired(request.sourcePublisher(), "Source publisher");
+        String targetPublisher = normalizeRequired(request.targetPublisher(), "Target publisher");
         if (sourcePublisher.equals(targetPublisher)) {
             return new PublisherRenameResult(targetPublisher, 0);
         }
         return new PublisherRenameResult(targetPublisher, bookRepository.renamePublisher(sourcePublisher, targetPublisher));
     }
 
-    private String trimToNull(String value) {
-        if (value == null) {
-            return null;
+    private String normalizeRequired(String value, String label) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(label + " must not be blank");
         }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
+        return value.trim();
     }
 }

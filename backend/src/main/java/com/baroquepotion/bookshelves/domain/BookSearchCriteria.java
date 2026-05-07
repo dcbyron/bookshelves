@@ -2,6 +2,7 @@ package com.baroquepotion.bookshelves.domain;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Filter and paging values used when searching the catalog.
@@ -54,7 +55,7 @@ public record BookSearchCriteria(
      * @return one of {@code title}, {@code author}, {@code year}, {@code dateAdded}, or {@code updated}
      */
     public String normalizedSortBy() {
-        return switch (sortBy == null ? "" : sortBy) {
+        return switch (valueOrEmpty(sortBy)) {
             case "author" -> "author";
             case "year" -> "year";
             case "dateAdded" -> "dateAdded";
@@ -69,7 +70,7 @@ public record BookSearchCriteria(
      * @return {@code asc} or {@code desc}
      */
     public String normalizedSortDirection() {
-        return "desc".equalsIgnoreCase(sortDirection) ? "desc" : "asc";
+        return "desc".equalsIgnoreCase(valueOrEmpty(sortDirection)) ? "desc" : "asc";
     }
 
     /**
@@ -78,7 +79,7 @@ public record BookSearchCriteria(
      * @return {@code before}, {@code after}, {@code never}, or {@code any}
      */
     public String normalizedLastAuditedMode() {
-        return switch (lastAuditedMode == null ? "" : lastAuditedMode.toLowerCase()) {
+        return switch (lowercaseValueOrEmpty(lastAuditedMode)) {
             case "before" -> "before";
             case "after" -> "after";
             case "never" -> "never";
@@ -92,7 +93,7 @@ public record BookSearchCriteria(
      * @return {@code before}, {@code after}, {@code year}, or {@code any}
      */
     public String normalizedDateAddedMode() {
-        return switch (dateAddedMode == null ? "" : dateAddedMode.toLowerCase()) {
+        return switch (lowercaseValueOrEmpty(dateAddedMode)) {
             case "before" -> "before";
             case "after" -> "after";
             case "year" -> "year";
@@ -107,6 +108,14 @@ public record BookSearchCriteria(
      * @return {@code and} or {@code or}
      */
     public String normalizedCollectionMode() {
-        return "and".equalsIgnoreCase(collectionMode) ? "and" : "or";
+        return "and".equalsIgnoreCase(valueOrEmpty(collectionMode)) ? "and" : "or";
+    }
+
+    private static String lowercaseValueOrEmpty(String value) {
+        return valueOrEmpty(value).toLowerCase();
+    }
+
+    private static String valueOrEmpty(String value) {
+        return Optional.ofNullable(value).orElse("");
     }
 }

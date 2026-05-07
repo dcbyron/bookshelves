@@ -1,0 +1,51 @@
+# Repository metadata
+.git/
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Java / Maven
+target/
+backend/target/
+.m2/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Node / Vite / Playwright
+frontend/node_modules/
+frontend/dist/
+frontend/test-results/
+playwright-report/
+
+# Runtime output
+logs/
+exports/
+
+# IDEs and editors
+.idea/
+.vscode/
+*.iws
+*.iml
+*.ipr
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# OS files
+.DS_Store
+Thumbs.db

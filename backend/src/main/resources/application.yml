@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: bookshelves-backend
+  datasource:
+    url: ${BOOKSHELVES_DB_URL:jdbc:postgresql://localhost:5432/bookshelves}
+    username: ${BOOKSHELVES_DB_USERNAME:bookshelves}
+    password: ${BOOKSHELVES_DB_PASSWORD:bookshelves}
+  flyway:
+    enabled: true
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  port: ${PORT:8080}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    disable-swagger-default-url: true
+
+logging:
+  level:
+    root: INFO
+    org.springdoc: WARN
+    org.eclipse.jetty: WARN
+    org.flywaydb: INFO
+
+bookshelves:
+  app-name: ${BOOKSHELVES_APP_NAME:Bookshelves}
+  cors:
+    allowed-origins: ${BOOKSHELVES_ALLOWED_ORIGINS:http://localhost:5173}
+  export:
+    script:
+      path: ${BOOKSHELVES_EXPORT_SCRIPT_PATH:}
+      working-directory: ${BOOKSHELVES_EXPORT_WORKING_DIRECTORY:}

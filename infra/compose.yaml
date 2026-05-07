@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:17
+    container_name: bookshelves-db
+    environment:
+      POSTGRES_DB: bookshelves
+      POSTGRES_USER: bookshelves
+      POSTGRES_PASSWORD: bookshelves
+    ports:
+      - "5432:5432"
+    volumes:
+      - bookshelves-postgres-data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    container_name: bookshelves-backend
+    environment:
+      BOOKSHELVES_DB_URL: jdbc:postgresql://db:5432/bookshelves
+      BOOKSHELVES_DB_USERNAME: bookshelves
+      BOOKSHELVES_DB_PASSWORD: bookshelves
+      BOOKSHELVES_ALLOWED_ORIGINS: http://localhost:5173
+      BOOKSHELVES_EXPORT_BASE: /app/exports
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../exports:/app/exports
+
+  frontend:
+    build:
+      context: ../frontend
+    container_name: bookshelves-frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ../frontend/src:/app/src
+
+volumes:
+  bookshelves-postgres-data:
